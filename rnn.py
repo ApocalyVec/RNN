@@ -3,6 +3,7 @@
 # recurrent neural network
 
 # part 1 - Data preprocessing
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,8 +22,10 @@ training_set_scaled = sc.fit_transform(training_set)
 x_train = []
 y_train = []
 
-for i in range(60, len(training_set_scaled)):
-    x_train.append(training_set_scaled[i-60:i, 0])
+time_steps = 120
+
+for i in range(time_steps, len(training_set_scaled)):
+    x_train.append(training_set_scaled[i-time_steps:i, 0])
     y_train.append(training_set_scaled[i, 0])
 
 x_train, y_train = np.array(x_train), np.array(y_train)
@@ -69,9 +72,34 @@ regressor.fit(x_train, y_train, epochs=100, batch_size=32)
 # saving the trained model
 from keras.models import load_model
 
-regressor.save('/trained_model/regresspr.h5')
+regressor.save(os.path.join('trained_model', 'regressor_ts_120.h5'))
 '''
 use this line if you want to load the model back
 regressor = load_model('/trained_model/regressor.h5')
 '''
 # part3
+# Getting the real stock price of 2017
+dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
+real_stock_price = dataset_test.iloc[:, 1:2].values
+
+# Getting the predicted stock price of 2017
+dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
+inputs = dataset_total[len(dataset_total) - len(dataset_test) - time_steps:].values
+inputs = inputs.reshape(-1,1)
+inputs = sc.transform(inputs)
+X_test = []
+for i in range(time_steps, len(inputs)):
+    X_test.append(inputs[i-time_steps:i, 0])
+X_test = np.array(X_test)
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+predicted_stock_price = regressor.predict(X_test)  # making the prediction
+predicted_stock_price = sc.inverse_transform(predicted_stock_price)
+
+# Visualising the results
+plt.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')
+plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Google Stock Price')
+plt.title('Google Stock Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Google Stock Price')
+plt.legend()
+plt.show()
